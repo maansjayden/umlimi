@@ -1,7 +1,14 @@
-"""Fine-tune MobileNetV3 on maize leaves (CPU-friendly), choose the abstain threshold, export int8 ONNX.
+"""Fine-tune a small CNN on maize leaves, export int8 ONNX, and choose the abstain threshold on FIELD photos.
 
-Usage: python ml/train.py [--epochs 6] [--per-class 1800]
-Outputs: ml/out/{best.pt, metrics.json, confusion.png, coverage.png}, app/public/model/{maize.onnx, meta.json}
+v2 changes after v1 (MobileNetV3) scored 98.5 % in-distribution but 35 % (int8) on PlantDoc field photos:
+- EfficientNet-Lite0 by default: designed for int8 (ReLU6, no squeeze-excite), unlike MobileNetV3.
+- PlantDoc corn field photos split 50/25/25: half (upweighted) joins training, a quarter chooses the
+  threshold, a quarter is a test set used for nothing else.
+- The threshold is chosen on the shipped int8 model's field-photo probabilities, not on lab-like validation.
+
+Usage: python ml/train.py [--epochs 12] [--per-class 2500] [--unfreeze-all]
+Outputs: ml/out/{best.pt, metrics.json, confusion.png, coverage.png, maize_fp32.onnx},
+         app/public/model/{maize.onnx, meta.json}
 """
 import argparse
 import json
@@ -26,7 +33,7 @@ APP_MODEL = ROOT / "app" / "public" / "model"
 LABELS = ["faw", "gls", "nlb", "rust", "healthy", "other"]
 SIZE = 224
 MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
-TARGET_ACC = 0.95  # accuracy we require on the answers the app does give
+TARGET_ACC = 0.95  # in-distribution: accuracy we require on the answers the app does give
 
 torch.set_num_threads(4)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -70,6 +77,21 @@ def plantdoc_test():
     return items
 
 
+def plantdoc_splits():
+    """PlantDoc corn field photos, per class 50 % train / 25 % threshold calibration / 25 % test."""
+    rng = random.Random(1)
+    add, calib, test = [], [], []
+    for lab in ("gls", "nlb", "rust"):
+        files = sorted((DATA / "plantdoc_test" / lab).glob("*.jpg"))
+        rng.shuffle(files)
+        a, b = len(files) // 2, (3 * len(files)) // 4
+        y = LABELS.index(lab)
+        add += [(f, y) for f in files[:a]]
+        calib += [(f, y) for f in files[a:b]]
+        test += [(f, y) for f in files[b:]]
+    return add, calib, test
+
+
 class DS(Dataset):
     def __init__(self, items, tf):
         self.items, self.tf = items, tf
@@ -82,14 +104,22 @@ class DS(Dataset):
         return self.tf(Image.open(p).convert("RGB")), y
 
 
-train_tf = T.Compose([
-    T.RandomResizedCrop(SIZE, scale=(0.5, 1.0)),
-    T.RandomHorizontalFlip(), T.RandomVerticalFlip(), T.RandomRotation(20),
-    # field conditions: harsh sun, shade, phone cameras
-    T.ColorJitter(0.4, 0.4, 0.3, 0.05), T.RandomApply([T.GaussianBlur(5)], p=0.2),
-    T.ToTensor(), T.Normalize(MEAN, STD),
-])
-eval_tf = T.Compose([T.Resize(SIZE), T.CenterCrop(SIZE), T.ToTensor(), T.Normalize(MEAN, STD)])
+def set_norm(mean, std):
+    """Build transforms for the backbone's own pretraining normalisation."""
+    global MEAN, STD, train_tf, eval_tf
+    MEAN, STD = tuple(float(m) for m in mean), tuple(float(s) for s in std)
+    train_tf = T.Compose([
+        T.RandomResizedCrop(SIZE, scale=(0.35, 1.0)),
+        T.RandomHorizontalFlip(), T.RandomVerticalFlip(), T.RandomRotation(25),
+        # field conditions: harsh sun, shade, phone cameras, clutter
+        T.ColorJitter(0.4, 0.4, 0.3, 0.05), T.RandomApply([T.GaussianBlur(5)], p=0.25),
+        T.RandomGrayscale(p=0.05),
+        T.ToTensor(), T.Normalize(MEAN, STD),
+    ])
+    eval_tf = T.Compose([T.Resize(SIZE), T.CenterCrop(SIZE), T.ToTensor(), T.Normalize(MEAN, STD)])
+
+
+set_norm(MEAN, STD)
 
 
 @torch.no_grad()
@@ -111,6 +141,22 @@ def predict_onnx(path, items):
         logits = sess.run(None, {"input": x.numpy()})[0]
         probs.append(torch.from_numpy(logits).softmax(1))
     return torch.cat(probs).numpy()
+
+
+def field_threshold(probs, ys, target):
+    """Lowest threshold where field-photo answers reach `target` accuracy. If no threshold gets there,
+    take the most accurate one that still answers at least 20 % (and report that the target was missed)."""
+    conf, pred = probs.max(1), probs.argmax(1)
+    curve = []
+    for t in np.arange(0.3, 0.996, 0.01):
+        keep = conf >= t
+        acc = float((pred[keep] == ys[keep]).mean()) if keep.any() else 1.0
+        curve.append((float(t), float(keep.mean()), acc))
+    ok = [c for c in curve if c[2] >= target and c[1] > 0]
+    if ok:
+        return ok[0][0], True, curve
+    usable = [c for c in curve if c[1] >= 0.2] or curve
+    return max(usable, key=lambda c: c[2])[0], False, curve
 
 
 def pick_threshold(probs, ys):
@@ -141,7 +187,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--per-class", type=int, default=1800)
-    ap.add_argument("--arch", default="mobilenetv3_large_100")
+    ap.add_argument("--arch", default="tf_efficientnet_lite0")
+    ap.add_argument("--field-weight", type=int, default=5, help="repeat PlantDoc field photos in training")
+    ap.add_argument("--field-target", type=float, default=0.85, help="accuracy required on field answers")
     ap.add_argument("--unfreeze-all", action="store_true", help="full fine-tune (use on a GPU)")
     ap.add_argument("--lr", type=float, default=1e-3)
     args = ap.parse_args()
@@ -149,10 +197,14 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
     train, val, test = collect(args.per_class)
+    pd_add, pd_calib, pd_test = plantdoc_splits()
+    train += pd_add * args.field_weight
     print("train", Counter(LABELS[y] for _, y in train))
-    print("val/test", len(val), len(test))
+    print("val/test", len(val), len(test), "| plantdoc add/calib/test", len(pd_add), len(pd_calib), len(pd_test))
 
     model = timm.create_model(args.arch, pretrained=True, num_classes=len(LABELS))
+    cfg = model.pretrained_cfg
+    set_norm(cfg.get("mean", MEAN), cfg.get("std", STD))
     # freeze the early blocks: faster on CPU and less overfitting to studio images
     for name, p in model.named_parameters():
         if not args.unfreeze_all and name.startswith(("conv_stem", "bn1", "blocks.0", "blocks.1", "blocks.2")):
@@ -191,37 +243,44 @@ def main():
             torch.save(model.state_dict(), OUT / "best.pt")
 
     model.load_state_dict(torch.load(OUT / "best.pt", map_location=DEVICE))
-    vp, vy = predict(model, val)
-    threshold, curve = pick_threshold(vp, vy)
+    metrics = {"arch": args.arch, "labels": LABELS, "train_counts": dict(Counter(LABELS[y] for _, y in train)),
+               "plantdoc_split": {"train_add": len(pd_add), "calib": len(pd_calib), "test": len(pd_test)}}
 
-    metrics = {"arch": args.arch, "threshold": threshold, "labels": LABELS, "train_counts": dict(Counter(LABELS[y] for _, y in train))}
     tp, ty = predict(model, test)
-    metrics["test_in_distribution"] = selective_report(tp, ty, threshold)
-    metrics["test_report"] = classification_report(ty, tp.argmax(1), labels=list(range(len(LABELS))), target_names=LABELS, output_dict=True, zero_division=0)
-    # Per-source accuracy: exposes where lab-heavy classes (rust) are weak on field photos.
-    by_src = {}
+    metrics["test_report"] = classification_report(ty, tp.argmax(1), labels=list(range(len(LABELS))),
+                                                   target_names=LABELS, output_dict=True, zero_division=0)
+    by_src = {}  # per-source accuracy: exposes where lab-heavy classes (rust) are weak on field photos
     for (p, y), pr in zip(test, tp):
-        s = f"{LABELS[y]}:{source_of(p)}"
-        by_src.setdefault(s, []).append(int(pr.argmax() == y))
+        by_src.setdefault(f"{LABELS[y]}:{source_of(p)}", []).append(int(pr.argmax() == y))
     metrics["test_by_source"] = {k: {"n": len(v), "acc": sum(v) / len(v)} for k, v in sorted(by_src.items())}
-
-    pd_items = plantdoc_test()
-    if pd_items:  # PlantDoc: independent web/field photos, different photographers, never seen in training
-        pp, py = predict(model, pd_items)
-        metrics["test_plantdoc_field"] = selective_report(pp, py, threshold)
-        metrics["plantdoc_confusion"] = confusion_matrix(py, pp.argmax(1), labels=list(range(len(LABELS)))).tolist()
-    metrics["coverage_curve_val"] = curve
-
     cm = confusion_matrix(ty, tp.argmax(1), labels=list(range(len(LABELS))))
     metrics["test_confusion"] = cm.tolist()
-    plots(cm, curve, threshold)
-    export(model, threshold, val)
-    # What ships is the int8 file, so measure it, not just the PyTorch model.
-    metrics["test_int8_onnx"] = selective_report(predict_onnx(APP_MODEL / "maize.onnx", test), ty, threshold)
+
+    # Export, then measure and calibrate the file that actually ships (int8), not just the PyTorch model.
+    export(model, 0.0, val + pd_add)
+    q = APP_MODEL / "maize.onnx"
+    cp_ = predict_onnx(q, pd_calib)
+    cy = np.array([y for _, y in pd_calib])
+    threshold, met, curve = field_threshold(cp_, cy, args.field_target)
+    metrics.update(threshold=threshold, field_target=args.field_target, field_target_met=met,
+                   coverage_curve_field_calib=curve)
+
+    metrics["test_in_distribution"] = selective_report(tp, ty, threshold)
+    metrics["test_int8_onnx"] = selective_report(predict_onnx(q, test), ty, threshold)
+    py = np.array([y for _, y in pd_test])
+    qp = predict_onnx(q, pd_test)
+    metrics["test_plantdoc_field_int8"] = selective_report(qp, py, threshold)
+    metrics["test_plantdoc_field_fp32"] = selective_report(predict_onnx(OUT / "maize_fp32.onnx", pd_test), py, threshold)
+    metrics["plantdoc_confusion_int8"] = confusion_matrix(py, qp.argmax(1), labels=list(range(len(LABELS)))).tolist()
+
+    meta = json.loads((APP_MODEL / "meta.json").read_text())
+    meta["threshold"] = round(threshold, 3)
+    (APP_MODEL / "meta.json").write_text(json.dumps(meta, indent=2))
     (OUT / "metrics.json").write_text(json.dumps(metrics, indent=2))
-    print(json.dumps({k: metrics[k] for k in ("threshold", "test_in_distribution", "test_int8_onnx")}, indent=2))
-    if "test_plantdoc_field" in metrics:
-        print("plantdoc", metrics["test_plantdoc_field"])
+    plots(cm, curve, threshold)
+    for k in ("threshold", "field_target_met", "test_in_distribution", "test_int8_onnx",
+              "test_plantdoc_field_fp32", "test_plantdoc_field_int8"):
+        print(k, metrics[k])
 
 
 def plots(cm, curve, threshold):
@@ -249,13 +308,14 @@ def plots(cm, curve, threshold):
     ax.axvline(threshold, ls="--", c="grey", label=f"threshold {threshold:.2f}")
     ax.set_xlabel("confidence threshold")
     ax.legend()
-    ax.set_title("Abstain → 'ask the extension officer'")
+    ax.set_title("Field photos: abstain → 'ask the extension officer'")
     fig.tight_layout()
     fig.savefig(OUT / "coverage.png", dpi=150)
 
 
 def export(model, threshold, calib_items):
-    from onnxruntime.quantization import CalibrationDataReader, QuantFormat, QuantType, quantize_static
+    from onnxruntime.quantization import (CalibrationDataReader, CalibrationMethod, QuantFormat, QuantType,
+                                          quantize_static)
     from onnxruntime.quantization.shape_inference import quant_pre_process
 
     APP_MODEL.mkdir(parents=True, exist_ok=True)
@@ -267,7 +327,7 @@ def export(model, threshold, calib_items):
 
     class Reader(CalibrationDataReader):
         def __init__(self):
-            sample = random.sample(calib_items, min(200, len(calib_items)))
+            sample = random.sample(calib_items, min(300, len(calib_items)))
             self.it = iter([{"input": eval_tf(Image.open(p).convert("RGB")).unsqueeze(0).numpy()} for p, _ in sample])
 
         def get_next(self):
@@ -275,7 +335,8 @@ def export(model, threshold, calib_items):
 
     q = APP_MODEL / "maize.onnx"
     quantize_static(str(pre), str(q), Reader(), quant_format=QuantFormat.QDQ,
-                    activation_type=QuantType.QUInt8, weight_type=QuantType.QInt8, per_channel=True)
+                    activation_type=QuantType.QUInt8, weight_type=QuantType.QInt8, per_channel=True,
+                    calibrate_method=CalibrationMethod.Percentile)
     meta = {"labels": LABELS, "input_size": SIZE, "mean": MEAN, "std": STD, "threshold": round(threshold, 3),
             "version": time.strftime("%Y-%m-%d")}
     (APP_MODEL / "meta.json").write_text(json.dumps(meta, indent=2))

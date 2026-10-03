@@ -18,7 +18,8 @@ def code(text):
 
 
 cells = [
-    md("# Umlimi — train the maize leaf model on a GPU\n\n"
+    md("# Umlimi v2 — train the maize leaf model on a GPU\n\n"
+       "EfficientNet-Lite0 (int8-friendly) + PlantDoc field photos; abstain threshold chosen on field photos.\n\n"
        "1. **Runtime → Change runtime type → T4 GPU**\n"
        "2. **Runtime → Run all** (about 30–45 min: ~15 min download, ~15 min training)\n"
        "3. The last cell downloads `umlimi_model.zip`. Unzip it into the repo: "
@@ -39,7 +40,7 @@ cells += [
     code("%cd /content/umlimi\n!python ml/train.py --unfreeze-all --epochs 12 --per-class 2500 --lr 1e-3"),
     code("import json\nfrom IPython.display import Image, display\n"
          "m = json.load(open('/content/umlimi/ml/out/metrics.json'))\n"
-         "for k in ('threshold', 'test_in_distribution', 'test_int8_onnx', 'test_plantdoc_field'):\n"
+         "for k in ('threshold', 'field_target_met', 'test_in_distribution', 'test_int8_onnx', 'test_plantdoc_field_fp32', 'test_plantdoc_field_int8'):\n"
          "    print(k, m.get(k))\n"
          "for k, v in m['test_by_source'].items():\n"
          "    print(f\"{k:45s} n={v['n']:4d} acc={v['acc']:.3f}\")\n"

@@ -7,3 +7,4 @@ dist/
 *.log
 ml/out/*.pt
 ml/out/*.onnx
+__pycache__/
