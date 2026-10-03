@@ -97,6 +97,28 @@ export const ANSWERS: Record<AnswerKey, Answer> = {
 export const UI: Record<string, Text> = {
   appName: { af: 'Umlimi', zu: 'Umlimi', en: 'Umlimi' },
   tagline: { af: 'Mieliehulp sonder internet', zu: 'Umsizi wommbila ongadingi inethiwekhi', en: 'Offline maize helper' },
+  scanSub: {
+    af: 'Soek herfsleërruspe, roes en blaarskroei — werk sonder internet',
+    zu: 'Hlola isibungu sempi, ukugqwala nezifo — ngaphandle kwenethiwekhi',
+    en: 'Scan for fall armyworm, rust & blight — works offline',
+  },
+  priceSub: {
+    af: "Vergelyk 'n koper se aanbod met die SAFEX-prys",
+    zu: 'Qhathanisa intengo yomthengi nentengo ye-SAFEX',
+    en: "Compare a buyer's offer with the SAFEX price",
+  },
+  queueSub: {
+    af: "Foto's gestoor vir die voorligtingsbeampte",
+    zu: 'Izithombe ezigcinelwe umeluleki wezolimo',
+    en: 'Photos saved for the extension officer',
+  },
+  onlineCached: { af: 'Aanlyn · gestoor', zu: 'Ku-inthanethi · kugciniwe', en: 'Online · cached' },
+  offlineMode: { af: 'Vanlyn-modus', zu: 'Ngaphandle kwenethiwekhi', en: 'Offline mode' },
+  footer: {
+    af: 'Loop op jou foon · geen data nodig nie',
+    zu: 'Isebenza efonini yakho · ayidingi idatha',
+    en: 'Runs on your phone · no data needed',
+  },
   scan: { af: "Toets 'n blaar", zu: 'Hlola iqabunga', en: 'Check a leaf' },
   price: { af: "Toets 'n prys", zu: 'Hlola intengo', en: 'Check a price' },
   queue: { af: 'Wag vir beampte', zu: 'Okulindele umeluleki', en: 'Waiting for officer' },

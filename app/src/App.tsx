@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ANSWERS, LANG_NAME, LANGS, UI, type Lang } from './content'
+import { ChevronLeft, ChevronRight, Clock, Coins, Leaf, ScanLine, type LucideIcon } from 'lucide-react'
+import { ANSWERS, LANG_NAME, UI, type Lang } from './content'
 import { classify, loadModel, type Prediction } from './model'
 import { addCase, hasConsent, loadQueue, setConsent, syncQueue, thumbnail, type Case } from './queue'
 import { checkPrice, loadPrice, type PriceCheck, type PriceRef } from './price'
@@ -35,12 +36,49 @@ function Gloss({ lang, text }: { lang: Lang; text: string }) {
   return lang === 'en' ? null : <p className="gloss">EN: {text}</p>
 }
 
+const SEGMENTS: Lang[] = ['en', 'zu', 'af']
+
+function ActionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  badge,
+  onClick,
+}: {
+  icon: LucideIcon
+  title: string
+  subtitle: string
+  badge?: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="card flex w-full items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+    >
+      <span className="shrink-0 rounded-xl bg-emerald-50 p-3 text-emerald-700">
+        <Icon size={26} strokeWidth={2} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="text-lg font-semibold tracking-tight text-slate-900">{title}</span>
+          {!!badge && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">{badge}</span>
+          )}
+        </span>
+        <span className="mt-0.5 block text-sm text-slate-500">{subtitle}</span>
+      </span>
+      <ChevronRight className="shrink-0 text-slate-300" size={20} />
+    </button>
+  )
+}
+
 export default function App() {
   const [lang, setLang] = useState<Lang>('af')
   const [screen, setScreen] = useState<Screen>('home')
   const online = useOnline()
   const t = tr(lang)
-  const next = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]
+  const waiting = loadQueue().filter((c) => !c.synced).length
 
   useEffect(() => {
     loadModel().catch(() => {}) // warm the model so the first scan is instant
@@ -48,41 +86,65 @@ export default function App() {
   }, [online])
 
   return (
-    <div className="app">
-      <header>
-        {screen !== 'home' ? (
-          <button className="link" onClick={() => setScreen('home')}>← {t('back')}</button>
-        ) : (
-          <div>
-            <h1>🌽 {t('appName')}</h1>
-            <small>{t('tagline')}</small>
-          </div>
-        )}
-        <div className="right">
-          <span className={`pill ${online ? 'on' : 'off'}`}>{online ? t('online') : t('offline')}</span>
-          <button className="pill" onClick={() => setLang(next)}>{LANG_NAME[next]}</button>
+    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-between border-x border-slate-200 bg-slate-50 p-5 shadow-xl">
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            {online ? t('onlineCached') : t('offlineMode')}
+          </span>
+          <span className="flex items-center gap-1">
+            <Leaf size={12} /> on-device AI
+          </span>
         </div>
-      </header>
 
-      {screen === 'home' && (
-        <main className="grid">
-          <button className="tile" onClick={() => setScreen('scan')}>
-            <span>📷</span>
-            {t('scan')}
+        {screen === 'home' ? (
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('appName')}</h1>
+            <p className="text-sm text-slate-500">{t('tagline')}</p>
+          </div>
+        ) : (
+          <button
+            className="flex items-center gap-1 self-start text-base font-medium text-slate-700"
+            onClick={() => setScreen('home')}
+          >
+            <ChevronLeft size={20} /> {t('back')}
           </button>
-          <button className="tile" onClick={() => setScreen('price')}>
-            <span>💰</span>
-            {t('price')}
-          </button>
-          <button className="tile" onClick={() => setScreen('queue')}>
-            <span>🧑🏾‍🌾</span>
-            {t('queue')} ({loadQueue().filter((c) => !c.synced).length})
-          </button>
-        </main>
-      )}
-      {screen === 'scan' && <Scan lang={lang} />}
-      {screen === 'price' && <Price lang={lang} />}
-      {screen === 'queue' && <Queue lang={lang} />}
+        )}
+
+        <div className="grid grid-cols-3 rounded-xl bg-slate-200/70 p-1 text-sm font-medium">
+          {SEGMENTS.map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`rounded-lg py-1.5 transition-all ${
+                lang === l ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {LANG_NAME[l]}
+            </button>
+          ))}
+        </div>
+
+        {screen === 'home' && (
+          <main className="flex flex-col gap-3">
+            <ActionCard icon={ScanLine} title={t('scan')} subtitle={t('scanSub')} onClick={() => setScreen('scan')} />
+            <ActionCard icon={Coins} title={t('price')} subtitle={t('priceSub')} onClick={() => setScreen('price')} />
+            <ActionCard
+              icon={Clock}
+              title={t('queue')}
+              subtitle={t('queueSub')}
+              badge={waiting}
+              onClick={() => setScreen('queue')}
+            />
+          </main>
+        )}
+        {screen === 'scan' && <Scan lang={lang} />}
+        {screen === 'price' && <Price lang={lang} />}
+        {screen === 'queue' && <Queue lang={lang} />}
+      </div>
+
+      <footer className="pt-6 text-center text-xs text-slate-400">{t('footer')}</footer>
     </div>
   )
 }
