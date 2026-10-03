@@ -18,7 +18,8 @@ export interface Answer {
   audio: Text // path under /audio
 }
 
-const clip = (key: string): Text => ({ af: `/audio/af/${key}.mp3`, zu: `/audio/zu/${key}.mp3`, en: `/audio/en/${key}.mp3` })
+// No ElevenLabs voice model supports isiZulu yet, so isiZulu is text-only (empty path = no clip).
+const clip = (key: string): Text => ({ af: `/audio/af/${key}.mp3`, zu: '', en: `/audio/en/${key}.mp3` })
 
 export const ANSWERS: Record<AnswerKey, Answer> = {
   healthy: {

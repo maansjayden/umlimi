@@ -23,6 +23,7 @@ function useOnline() {
 }
 
 function play(src: string) {
+  if (!src) return
   const a = new Audio(src)
   a.play().catch(() => {}) // clip may be missing in dev; text is always shown
 }
@@ -149,7 +150,7 @@ function Scan({ lang }: { lang: Lang }) {
           <h2>{ans.title[lang]}</h2>
           <p>{ans.advice[lang]}</p>
           <Gloss lang={lang} text={ans.advice.en} />
-          <button onClick={() => play(ans.audio[lang])}>🔊 {t('listen')}</button>
+          {ans.audio[lang] && <button onClick={() => play(ans.audio[lang])}>🔊 {t('listen')}</button>}
           {pred.answer !== 'unsure' && pred.answer !== 'other' && (
             <button onClick={sendToOfficer} disabled={sent}>
               {sent ? `✓ ${t('saved')}` : `🧑🏾‍🌾 ${t('sendOfficer')}`}

@@ -6,7 +6,6 @@ Env: ELEVENLABS_API_KEY (sk_...), optional ELEVENLABS_VOICE_ID.
 """
 import os
 import re
-import sys
 from pathlib import Path
 
 import requests
@@ -41,7 +40,7 @@ def model_for(lang: str) -> str:
     for mid in MODEL_PREFERENCE:
         if lang in support.get(mid, set()):
             return mid
-    sys.exit(f"no ElevenLabs model lists language '{lang}'. Available: {sorted(support)}")
+    return ""  # no voice model for this language: the app shows the text only
 
 
 def voice_id() -> str:
@@ -58,6 +57,9 @@ def main():
     vid = voice_id()
     for lang in LANGS:
         model = model_for(lang)
+        if not model:
+            print(f"{lang}: no ElevenLabs model supports it -> text only, no clips")
+            continue
         print(f"{lang}: {model}")
         for key, t in texts.items():
             dst = OUT / lang / f"{key}.mp3"
