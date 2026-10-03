@@ -170,6 +170,26 @@ export const UI: Record<string, Text> = {
     zu: 'Ngiyavuma ukuthi lezi zithombe zamaqabunga zabelwane nomeluleki wezolimo.',
     en: 'I agree to share these leaf photos with the extension officer.',
   },
+  sentToast: {
+    af: 'Gevalle na die voorligtingsbeampte gestuur',
+    zu: 'Izimo zithunyelwe kumeluleki wezolimo',
+    en: 'Cases sent to extension officer',
+  },
+  needConsent: {
+    af: "Merk eers 'Ek stem in' hierbo.",
+    zu: "Qala ngokumaka 'Ngiyavuma' ngenhla.",
+    en: "Tick 'I agree' above first.",
+  },
+  noSignal: {
+    af: 'Geen sein nie — die gevalle wag op die foon en word later gestuur.',
+    zu: 'Ayikho inethiwekhi — izimo zilinda efonini, zizothunyelwa kamuva.',
+    en: 'No signal — cases wait on the phone and will be sent later.',
+  },
+  demoNote: {
+    af: 'Demo: nog geen beampte-bediener nie; afstuur is gesimuleer.',
+    zu: 'Idemo: alikho iseva yomeluleki okwamanje; ukuthumela kuyalingiswa.',
+    en: 'Demo: no officer server yet; delivery is simulated.',
+  },
   sendNow: { af: 'Stuur nou', zu: 'Thumela manje', en: 'Send now' },
   nothing: { af: 'Niks wag nie.', zu: 'Akukho lutho.', en: 'Nothing waiting.' },
   sent: { af: '✓ gestuur', zu: '✓ kuthunyelwe', en: '✓ sent' },

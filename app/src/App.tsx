@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock, Coins, Leaf, ScanLine, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Coins, Leaf, Loader2, ScanLine, Send, type LucideIcon } from 'lucide-react'
 import { ANSWERS, LANG_NAME, UI, type Lang } from './content'
 import { classify, loadModel, type Prediction } from './model'
-import { addCase, hasConsent, loadQueue, setConsent, syncQueue, thumbnail, type Case } from './queue'
+import { addCase, DEMO_SYNC, hasConsent, loadQueue, setConsent, syncQueue, thumbnail, type Case } from './queue'
 import { checkPrice, loadPrice, type PriceCheck, type PriceRef } from './price'
 import './App.css'
 
@@ -319,7 +319,21 @@ function Price({ lang }: { lang: Lang }) {
 function Queue({ lang }: { lang: Lang }) {
   const [q, setQ] = useState<Case[]>(loadQueue())
   const [consent, setC] = useState(hasConsent())
+  const [busy, setBusy] = useState(false)
+  const [toast, setToast] = useState<string>()
   const t = tr(lang)
+  const pending = q.filter((c) => !c.synced).length
+
+  async function sendNow() {
+    if (!navigator.onLine) return setToast(t('noSignal'))
+    setBusy(true)
+    setToast(undefined)
+    const sent = await syncQueue(true)
+    setQ(loadQueue())
+    setBusy(false)
+    if (sent > 0) setToast(t('sentToast'))
+  }
+
   return (
     <main>
       <label className="consent">
@@ -330,12 +344,32 @@ function Queue({ lang }: { lang: Lang }) {
         />
         {t('consent')}
       </label>
-      <button onClick={async () => (await syncQueue(), setQ(loadQueue()))}>🔄 {t('sendNow')}</button>
+      <button
+        className="flex items-center justify-center gap-2"
+        onClick={sendNow}
+        disabled={busy || !consent || pending === 0}
+      >
+        {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+        {t('sendNow')}
+        {pending > 0 && (
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">{pending}</span>
+        )}
+      </button>
+      {!consent && pending > 0 && <p className="muted">{t('needConsent')}</p>}
+      {toast && (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+          <span>
+            {toast}
+            {DEMO_SYNC && toast === t('sentToast') && <span className="block text-xs text-emerald-700/70">{t('demoNote')}</span>}
+          </span>
+        </div>
+      )}
       {q.length === 0 && <p className="muted">{t('nothing')}</p>}
       <ul className="cases">
         {q.map((c) => (
           <li key={c.id}>
-            <img src={c.thumb} alt="" />
+            {c.thumb && <img src={c.thumb} alt="" />}
             <div>
               <strong>{ANSWERS[c.answer].title[lang]}</strong>
               <br />

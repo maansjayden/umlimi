@@ -30,8 +30,21 @@ export function addCase(c: Omit<Case, 'id' | 'ts' | 'synced'>): Case {
   return full
 }
 
-export async function syncQueue(): Promise<number> {
-  if (!SYNC_URL || !navigator.onLine || !hasConsent()) return 0
+// No officer server is deployed for the hackathon demo. Without VITE_SYNC_URL, a manual "Send now"
+// simulates delivery (marks cases sent after a short delay) and the UI labels it as a demo.
+export const DEMO_SYNC = !SYNC_URL
+
+export async function syncQueue(manual = false): Promise<number> {
+  if (!navigator.onLine || !hasConsent()) return 0
+  if (!SYNC_URL) {
+    if (!manual) return 0 // never "send" in the background when nothing would really be sent
+    const q = loadQueue()
+    const pending = q.filter((c) => !c.synced)
+    await new Promise((r) => setTimeout(r, 1200))
+    pending.forEach((c) => (c.synced = true))
+    save(q)
+    return pending.length
+  }
   const q = loadQueue()
   let sent = 0
   for (const c of q.filter((c) => !c.synced)) {
