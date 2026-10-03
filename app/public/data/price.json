@@ -1,0 +1,8 @@
+{
+  "updated": "2026-10-02",
+  "source": "JSE SAFEX settlement (via derivative.co.za)",
+  "white_r_per_ton": 4058,
+  "yellow_r_per_ton": 4085,
+  "transport_r_per_ton_km": 2.5,
+  "handling_r_per_ton": 80
+}

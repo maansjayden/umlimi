@@ -1,5 +1,5 @@
 .venv/
-data/
+/data/
 node_modules/
 dist/
 *.onnx.data
