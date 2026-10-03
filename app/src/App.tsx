@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ANSWERS, LANG_NAME, LANGS, UI, type Lang } from './content'
 import { classify, loadModel, type Prediction } from './model'
-import { addCase, loadQueue, syncQueue, thumbnail, type Case } from './queue'
+import { addCase, hasConsent, loadQueue, setConsent, syncQueue, thumbnail, type Case } from './queue'
 import { checkPrice, loadPrice, type PriceCheck, type PriceRef } from './price'
 import './App.css'
 
@@ -124,6 +124,7 @@ function Scan({ lang }: { lang: Lang }) {
   async function sendToOfficer() {
     if (!file || !pred) return
     addCase({ answer: pred.answer, label: pred.label, confidence: pred.confidence, thumb: await thumbnail(file) })
+    setConsent(true)
     setSent(true)
     syncQueue()
   }
@@ -254,9 +255,18 @@ function Price({ lang }: { lang: Lang }) {
 
 function Queue({ lang }: { lang: Lang }) {
   const [q, setQ] = useState<Case[]>(loadQueue())
+  const [consent, setC] = useState(hasConsent())
   const t = tr(lang)
   return (
     <main>
+      <label className="consent">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => (setConsent(e.target.checked), setC(e.target.checked))}
+        />
+        {t('consent')}
+      </label>
       <button onClick={async () => (await syncQueue(), setQ(loadQueue()))}>🔄 {t('sendNow')}</button>
       {q.length === 0 && <p className="muted">{t('nothing')}</p>}
       <ul className="cases">

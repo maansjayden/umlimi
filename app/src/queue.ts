@@ -14,7 +14,12 @@ export interface Case {
 }
 
 const KEY = 'umlimi.queue'
+const CONSENT = 'umlimi.consent'
 const SYNC_URL = import.meta.env.VITE_SYNC_URL as string | undefined
+
+// The farmer's explicit agreement to share queued photos with the extension officer.
+export const hasConsent = () => localStorage.getItem(CONSENT) === 'yes'
+export const setConsent = (yes: boolean) => localStorage.setItem(CONSENT, yes ? 'yes' : 'no')
 
 export const loadQueue = (): Case[] => JSON.parse(localStorage.getItem(KEY) ?? '[]')
 const save = (q: Case[]) => localStorage.setItem(KEY, JSON.stringify(q))
@@ -26,7 +31,7 @@ export function addCase(c: Omit<Case, 'id' | 'ts' | 'synced'>): Case {
 }
 
 export async function syncQueue(): Promise<number> {
-  if (!SYNC_URL || !navigator.onLine) return 0
+  if (!SYNC_URL || !navigator.onLine || !hasConsent()) return 0
   const q = loadQueue()
   let sent = 0
   for (const c of q.filter((c) => !c.synced)) {

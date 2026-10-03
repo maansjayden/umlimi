@@ -174,3 +174,13 @@ button.link {
   object-fit: cover;
   border-radius: 8px;
 }
+.consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.95rem;
+}
+.consent input {
+  width: 22px;
+  height: 22px;
+}

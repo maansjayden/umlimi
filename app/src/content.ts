@@ -142,6 +142,11 @@ export const UI: Record<string, Text> = {
     en: 'This offer is above the reference price.',
   },
   // queue screen
+  consent: {
+    af: 'Ek stem in dat hierdie blaarfoto\'s met die voorligtingsbeampte gedeel word.',
+    zu: 'Ngiyavuma ukuthi lezi zithombe zamaqabunga zabelwane nomeluleki wezolimo.',
+    en: 'I agree to share these leaf photos with the extension officer.',
+  },
   sendNow: { af: 'Stuur nou', zu: 'Thumela manje', en: 'Send now' },
   nothing: { af: 'Niks wag nie.', zu: 'Akukho lutho.', en: 'Nothing waiting.' },
   sent: { af: '✓ gestuur', zu: '✓ kuthunyelwe', en: '✓ sent' },
