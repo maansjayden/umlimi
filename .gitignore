@@ -5,3 +5,5 @@ dist/
 *.onnx.data
 .env
 *.log
+ml/out/*.pt
+ml/out/*.onnx
