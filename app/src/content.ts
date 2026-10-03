@@ -186,9 +186,15 @@ export const UI: Record<string, Text> = {
     en: 'No signal — cases wait on the phone and will be sent later.',
   },
   demoNote: {
-    af: 'Demo: nog geen beampte-bediener nie; afstuur is gesimuleer.',
-    zu: 'Idemo: alikho iseva yomeluleki okwamanje; ukuthumela kuyalingiswa.',
-    en: 'Demo: no officer server yet; delivery is simulated.',
+    af: "Op hierdie foon gestoor. In 'n volle ontplooiing gaan gevalle na die koöperasie se voorligtingsbeampte sodra daar sein is — in hierdie demo gesimuleer.",
+    zu: 'Kugcinwe kule foni. Uma isetshenziswa ngokugcwele, izimo ziya kumeluleki we-co-op uma kunenethiwekhi — kulingiswa kule demo.',
+    en: "Stored on this phone. In a full deployment, cases go to the co-op's extension officer once there is signal — simulated in this demo.",
+  },
+  trySample: { af: 'Probeer voorbeeld', zu: 'Zama isibonelo', en: 'Try sample' },
+  sampleHint: {
+    af: "Geen mielieblaar naby nie? Probeer 'n voorbeeldfoto:",
+    zu: 'Alikho iqabunga lommbila eduze? Zama isithombe sesibonelo:',
+    en: 'No maize leaf nearby? Try a sample photo:',
   },
   sendNow: { af: 'Stuur nou', zu: 'Thumela manje', en: 'Send now' },
   nothing: { af: 'Niks wag nie.', zu: 'Akukho lutho.', en: 'Nothing waiting.' },

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Coins, Leaf, Loader2, ScanLine, Send, type LucideIcon } from 'lucide-react'
-import { ANSWERS, LANG_NAME, UI, type Lang } from './content'
+import { ANSWERS, LANG_NAME, UI, type Label, type Lang } from './content'
 import { classify, loadModel, type Prediction } from './model'
 import { addCase, DEMO_SYNC, hasConsent, loadQueue, setConsent, syncQueue, thumbnail, type Case } from './queue'
 import { checkPrice, loadPrice, type PriceCheck, type PriceRef } from './price'
@@ -37,6 +37,7 @@ function Gloss({ lang, text }: { lang: Lang; text: string }) {
 }
 
 const SEGMENTS: Lang[] = ['en', 'zu', 'af']
+const SAMPLES: Label[] = ['faw', 'nlb', 'healthy']
 
 function ActionCard({
   icon: Icon,
@@ -184,6 +185,12 @@ function Scan({ lang }: { lang: Lang }) {
     }
   }
 
+  // Sample field photos (bundled, work offline) so reviewers without a maize leaf can try the live model.
+  async function trySample(k: Label) {
+    const blob = await (await fetch(`/samples/${k}.jpg`)).blob()
+    onFile(new File([blob], `${k}.jpg`, { type: 'image/jpeg' }))
+  }
+
   async function sendToOfficer() {
     if (!file || !pred) return
     addCase({ answer: pred.answer, label: pred.label, confidence: pred.confidence, thumb: await thumbnail(file) })
@@ -204,6 +211,35 @@ function Scan({ lang }: { lang: Lang }) {
         onChange={(e) => onFile(e.target.files?.[0])}
       />
       <button className="big" onClick={() => input.current?.click()}>📷 {t('takePhoto')}</button>
+      {!photo && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-slate-500">{t('sampleHint')}</p>
+          <div className="flex flex-wrap gap-2">
+            {SAMPLES.map((k) => (
+              <button
+                key={k}
+                className="chip rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:shadow active:scale-[0.97]"
+                onClick={() => trySample(k)}
+              >
+                {t('trySample')}: {ANSWERS[k].title[lang]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {photo && (
+        <div className="flex flex-wrap gap-2">
+          {SAMPLES.map((k) => (
+            <button
+              key={k}
+              className="chip rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600"
+              onClick={() => trySample(k)}
+            >
+              {t('trySample')}: {ANSWERS[k].title[lang]}
+            </button>
+          ))}
+        </div>
+      )}
       {photo && <img className="photo" src={photo} alt="" />}
       {busy && <p className="muted">…</p>}
       {error && <p className="error">{error}</p>}

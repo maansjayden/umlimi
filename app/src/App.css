@@ -5,7 +5,7 @@
     flex-direction: column;
     gap: 12px;
   }
-  main button:not(.card) {
+  main :where(button:not(.card, .chip)) {
     font: inherit;
     padding: 10px 14px;
     border-radius: 10px;

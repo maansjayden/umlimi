@@ -23,7 +23,7 @@ export default defineConfig({
         icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,json,onnx,wasm,mjs,mp3}'],
+        globPatterns: ['**/*.{js,css,html,svg,json,onnx,wasm,mjs,mp3,jpg}'],
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
         runtimeCaching: [
           {
