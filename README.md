@@ -2,7 +2,7 @@
 
 **Hack-Nation 7th Global AI Hackathon · Challenge 04: Small AI for Development (World Bank) · Agriculture**
 
-**Live demo:** _(link coming)_ · **Video:** _(link coming)_
+**Live demo:** https://umlimi-theta.vercel.app (open on an Android phone → "Add to Home screen" → works in airplane mode) · **Video:** _(link coming)_
 
 > Because of Umlimi, a smallholder maize farmer will know **on the day she sees a damaged leaf** whether it is
 > fall armyworm or a leaf disease, and **on the day a buyer arrives** whether his price is fair. Without it she
