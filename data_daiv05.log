@@ -1,3 +1,0 @@
-skip fall_armyworm/real/fall_armyworm_maize_africa_real_36349214.jpg: ('Connection broken: IncompleteRead(485818057 bytes read, 346540343 more expected)', IncompleteRead(485818057 bytes read, 346540343 more expected))
-skip fall_armyworm/real/fall_armyworm_maize_africa_real_10692423.jpg: ('Connection broken: IncompleteRead(661335549 bytes read, 181682691 more expected)', IncompleteRead(661335549 bytes read, 181682691 more expected))
-shard 02: 1003 images

@@ -4,6 +4,7 @@ daiv05/corn-leaf-diseases-pests-and-deficiencies (CC BY-NC-SA 4.0). Shards are s
 we skip lethal_necrosis (13-16) and nutrient deficiencies, and sample healthy / NLB shards.
 """
 import io
+import os
 import sys
 import tarfile
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +14,8 @@ import requests
 from PIL import Image
 
 REPO = "https://huggingface.co/datasets/daiv05/corn-leaf-diseases-pests-and-deficiencies/resolve/main"
-SHARDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 17, 21, 22]
+# default: a laptop-sized sample; Colab sets UMLIMI_SHARDS to every shard we use (skips 13-16, lethal necrosis)
+SHARDS = [int(s) for s in os.environ.get("UMLIMI_SHARDS", "0,1,2,3,4,5,6,7,8,11,17,21,22").split(",")]
 KEEP = {"common_rust": "rust", "fall_armyworm": "faw", "gray_leaf_spot": "gls",
         "healthy": "healthy", "northern_corn_leaf_blight": "nlb"}
 OUT = Path(__file__).resolve().parent.parent / "data" / "maize"

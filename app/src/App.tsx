@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ANSWERS, UI, type Lang } from './content'
+import { ANSWERS, LANG_NAME, LANGS, UI, type Lang } from './content'
 import { classify, loadModel, type Prediction } from './model'
 import { addCase, loadQueue, syncQueue, thumbnail, type Case } from './queue'
 import { checkPrice, loadPrice, type PriceCheck, type PriceRef } from './price'
@@ -27,11 +27,19 @@ function play(src: string) {
   a.play().catch(() => {}) // clip may be missing in dev; text is always shown
 }
 
+const tr = (lang: Lang) => (k: string) => UI[k][lang]
+
+// English line under the local-language text, so a reviewer can follow along.
+function Gloss({ lang, text }: { lang: Lang; text: string }) {
+  return lang === 'en' ? null : <p className="gloss">EN: {text}</p>
+}
+
 export default function App() {
-  const [lang, setLang] = useState<Lang>('zu')
+  const [lang, setLang] = useState<Lang>('af')
   const [screen, setScreen] = useState<Screen>('home')
   const online = useOnline()
-  const t = (k: string) => UI[k][lang]
+  const t = tr(lang)
+  const next = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]
 
   useEffect(() => {
     loadModel().catch(() => {}) // warm the model so the first scan is instant
@@ -51,9 +59,7 @@ export default function App() {
         )}
         <div className="right">
           <span className={`pill ${online ? 'on' : 'off'}`}>{online ? t('online') : t('offline')}</span>
-          <button className="pill" onClick={() => setLang(lang === 'zu' ? 'en' : 'zu')}>
-            {lang === 'zu' ? 'English' : 'isiZulu'}
-          </button>
+          <button className="pill" onClick={() => setLang(next)}>{LANG_NAME[next]}</button>
         </div>
       </header>
 
@@ -88,7 +94,7 @@ function Scan({ lang }: { lang: Lang }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [sent, setSent] = useState(false)
-  const t = (k: string) => UI[k][lang]
+  const t = tr(lang)
 
   async function onFile(f?: File) {
     if (!f) return
@@ -141,6 +147,7 @@ function Scan({ lang }: { lang: Lang }) {
         <section className={`result ${ans.severity}`}>
           <h2>{ans.title[lang]}</h2>
           <p>{ans.advice[lang]}</p>
+          <Gloss lang={lang} text={ans.advice.en} />
           <button onClick={() => play(ans.audio[lang])}>🔊 {t('listen')}</button>
           {pred.answer !== 'unsure' && pred.answer !== 'other' && (
             <button onClick={sendToOfficer} disabled={sent}>
@@ -169,15 +176,6 @@ function Scan({ lang }: { lang: Lang }) {
   )
 }
 
-const VERDICT = {
-  low: {
-    zu: 'Le ntengo iphansi kunentengo ejwayelekile. Ungabuza abanye abathengi noma i-co-op ngaphambi kokuthengisa.',
-    en: 'This offer is below the reference price. You may want to ask other buyers or your co-op before selling.',
-  },
-  fair: { zu: 'Le ntengo isondele entengweni ejwayelekile.', en: 'This offer is close to the reference price.' },
-  good: { zu: 'Le ntengo ingaphezu kwentengo ejwayelekile.', en: 'This offer is above the reference price.' },
-}
-
 function Price({ lang }: { lang: Lang }) {
   const [ref, setRef] = useState<PriceRef>()
   const [maize, setMaize] = useState<'white' | 'yellow'>('white')
@@ -186,7 +184,7 @@ function Price({ lang }: { lang: Lang }) {
   const [km, setKm] = useState('40')
   const [res, setRes] = useState<PriceCheck>()
   const [error, setError] = useState<string>()
-  const zu = lang === 'zu'
+  const t = tr(lang)
 
   useEffect(() => {
     loadPrice().then(setRef, (e) => setError(String(e)))
@@ -196,24 +194,24 @@ function Price({ lang }: { lang: Lang }) {
   return (
     <main className="form">
       <label>
-        {zu ? 'Uhlobo lommbila' : 'Maize type'}
+        {t('maizeType')}
         <select value={maize} onChange={(e) => setMaize(e.target.value as 'white' | 'yellow')}>
-          <option value="white">{zu ? 'Ommhlophe' : 'White'}</option>
-          <option value="yellow">{zu ? 'Ophuzi' : 'Yellow'}</option>
+          <option value="white">{t('white')}</option>
+          <option value="yellow">{t('yellow')}</option>
         </select>
       </label>
       <label>
-        {zu ? 'Umthengi unikeza (R)' : 'Buyer offers (R)'}
+        {t('buyerOffers')}
         <div className="row">
           <input inputMode="decimal" value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="180" />
           <select value={unit} onChange={(e) => setUnit(e.target.value as 'bag50' | 'ton')}>
-            <option value="bag50">{zu ? 'isaka elingu-50kg' : 'per 50 kg bag'}</option>
-            <option value="ton">{zu ? 'ithani' : 'per ton'}</option>
+            <option value="bag50">{t('perBag')}</option>
+            <option value="ton">{t('perTon')}</option>
           </select>
         </div>
       </label>
       <label>
-        {zu ? 'Ibanga eliya esilo esiseduze (km)' : 'Distance to nearest silo (km)'}
+        {t('distance')}
         <input inputMode="numeric" value={km} onChange={(e) => setKm(e.target.value)} />
       </label>
       <button
@@ -221,7 +219,7 @@ function Price({ lang }: { lang: Lang }) {
         disabled={!ref || !offer}
         onClick={() => ref && setRes(checkPrice(ref, maize, Number(offer), unit, Number(km)))}
       >
-        💰 {zu ? 'Hlola' : 'Check'}
+        💰 {t('check')}
       </button>
       {error && <p className="error">{error}</p>}
       {res && ref && (
@@ -230,24 +228,24 @@ function Price({ lang }: { lang: Lang }) {
             {res.diffPct > 0 ? '+' : ''}
             {res.diffPct.toFixed(0)}%
           </h2>
-          <p>{VERDICT[res.verdict][lang]}</p>
+          <p>{t(res.verdict)}</p>
+          <Gloss lang={lang} text={UI[res.verdict].en} />
           <p>
-            {zu ? 'Okunikezwayo' : 'Offer'}: {R(res.offerPerTon)}/t ({R(res.offerPerTon / 20)}/50kg)
+            {t('offer')}: {R(res.offerPerTon)}/t ({R(res.offerPerTon / 20)}/50kg)
             <br />
-            {zu ? 'Intengo elinganiselwe epulazini' : 'Estimated fair farm-gate'}: {R(res.farmGate)}/t (
-            {R(res.farmGate / 20)}/50kg)
+            {t('farmGate')}: {R(res.farmGate)}/t ({R(res.farmGate / 20)}/50kg)
             <br />
             SAFEX: {R(res.safex)}/t · {ref.updated}
-            {res.ageDays > 7 && <strong> · {zu ? 'intengo indala' : 'price is old'} ({res.ageDays}d)</strong>}
+            {res.ageDays > 7 && <strong> · {t('oldPrice')} ({res.ageDays}d)</strong>}
           </p>
           <details>
-            <summary>{zu ? 'Kubalwa kanjani' : 'How this is calculated'}</summary>
+            <summary>{t('howCalc')}</summary>
             <p className="muted">
               SAFEX ({ref.source}) − transport R{ref.transport_r_per_ton_km}/t/km × {km} km − handling R
-              {ref.handling_r_per_ton}/t. {zu ? 'Lezi yizilinganiso.' : 'These are estimates.'}
+              {ref.handling_r_per_ton}/t. {t('estimates')}
             </p>
           </details>
-          <p className="muted">{UI.aiNote[lang]}</p>
+          <p className="muted">{t('aiNote')}</p>
         </section>
       )}
     </main>
@@ -256,13 +254,11 @@ function Price({ lang }: { lang: Lang }) {
 
 function Queue({ lang }: { lang: Lang }) {
   const [q, setQ] = useState<Case[]>(loadQueue())
-  const zu = lang === 'zu'
+  const t = tr(lang)
   return (
     <main>
-      <button onClick={async () => (await syncQueue(), setQ(loadQueue()))}>
-        🔄 {zu ? 'Thumela manje' : 'Send now'}
-      </button>
-      {q.length === 0 && <p className="muted">{zu ? 'Akukho lutho.' : 'Nothing waiting.'}</p>}
+      <button onClick={async () => (await syncQueue(), setQ(loadQueue()))}>🔄 {t('sendNow')}</button>
+      {q.length === 0 && <p className="muted">{t('nothing')}</p>}
       <ul className="cases">
         {q.map((c) => (
           <li key={c.id}>
@@ -272,7 +268,7 @@ function Queue({ lang }: { lang: Lang }) {
               <br />
               <small>
                 {new Date(c.ts).toLocaleString('en-ZA')} · {Math.round(c.confidence * 100)}% ·{' '}
-                {c.synced ? (zu ? '✓ kuthunyelwe' : '✓ sent') : zu ? '⏳ kulindile' : '⏳ waiting'}
+                {c.synced ? t('sent') : t('waiting')}
               </small>
             </div>
           </li>

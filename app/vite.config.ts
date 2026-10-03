@@ -13,8 +13,8 @@ export default defineConfig({
       manifest: {
         name: 'Umlimi — offline maize helper',
         short_name: 'Umlimi',
-        description: 'Offline maize leaf check and fair-price reference, in isiZulu',
-        lang: 'zu',
+        description: 'Offline maize leaf check and fair-price reference, in Afrikaans and isiZulu',
+        lang: 'af',
         theme_color: '#2e7d32',
         background_color: '#ffffff',
         display: 'standalone',

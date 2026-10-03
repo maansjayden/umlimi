@@ -123,6 +123,11 @@ button.link {
   border-color: #5c6bc0;
   background: #eef0fb;
 }
+.gloss {
+  color: #555;
+  font-size: 0.85rem;
+  font-style: italic;
+}
 .muted {
   color: #666;
   font-size: 0.9rem;

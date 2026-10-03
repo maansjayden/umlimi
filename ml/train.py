@@ -29,6 +29,8 @@ MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 TARGET_ACC = 0.95  # accuracy we require on the answers the app does give
 
 torch.set_num_threads(4)
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+WORKERS = 2 if DEVICE == "cuda" else 4
 random.seed(0)
 torch.manual_seed(0)
 
@@ -94,10 +96,21 @@ eval_tf = T.Compose([T.Resize(SIZE), T.CenterCrop(SIZE), T.ToTensor(), T.Normali
 def predict(model, items):
     model.eval()
     probs, ys = [], []
-    for x, y in DataLoader(DS(items, eval_tf), batch_size=64, num_workers=4):
-        probs.append(model(x).softmax(1))
+    for x, y in DataLoader(DS(items, eval_tf), batch_size=64, num_workers=WORKERS):
+        probs.append(model(x.to(DEVICE)).softmax(1).cpu())
         ys.append(y)
     return torch.cat(probs).numpy(), torch.cat(ys).numpy()
+
+
+def predict_onnx(path, items):
+    import onnxruntime as ort
+
+    sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    probs = []
+    for x, _ in DataLoader(DS(items, eval_tf), batch_size=1, num_workers=WORKERS):
+        logits = sess.run(None, {"input": x.numpy()})[0]
+        probs.append(torch.from_numpy(logits).softmax(1))
+    return torch.cat(probs).numpy()
 
 
 def pick_threshold(probs, ys):
@@ -129,7 +142,10 @@ def main():
     ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--per-class", type=int, default=1800)
     ap.add_argument("--arch", default="mobilenetv3_large_100")
+    ap.add_argument("--unfreeze-all", action="store_true", help="full fine-tune (use on a GPU)")
+    ap.add_argument("--lr", type=float, default=1e-3)
     args = ap.parse_args()
+    print("device", DEVICE)
     OUT.mkdir(parents=True, exist_ok=True)
 
     train, val, test = collect(args.per_class)
@@ -139,21 +155,23 @@ def main():
     model = timm.create_model(args.arch, pretrained=True, num_classes=len(LABELS))
     # freeze the early blocks: faster on CPU and less overfitting to studio images
     for name, p in model.named_parameters():
-        if name.startswith(("conv_stem", "bn1", "blocks.0", "blocks.1", "blocks.2")):
+        if not args.unfreeze_all and name.startswith(("conv_stem", "bn1", "blocks.0", "blocks.1", "blocks.2")):
             p.requires_grad = False
 
     counts = Counter(y for _, y in train)
     weights = torch.tensor([len(train) / (len(LABELS) * max(counts[i], 1)) for i in range(len(LABELS))], dtype=torch.float)
-    loss_fn = nn.CrossEntropyLoss(weight=weights, label_smoothing=0.1)
-    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=1e-3, weight_decay=1e-4)
-    loader = DataLoader(DS(train, train_tf), batch_size=48, shuffle=True, num_workers=4, drop_last=True)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=1e-3, total_steps=args.epochs * len(loader))
+    model.to(DEVICE)
+    loss_fn = nn.CrossEntropyLoss(weight=weights.to(DEVICE), label_smoothing=0.1)
+    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=args.lr, weight_decay=1e-4)
+    loader = DataLoader(DS(train, train_tf), batch_size=48, shuffle=True, num_workers=WORKERS, drop_last=True)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=args.lr, total_steps=args.epochs * len(loader))
 
     best = 0.0
     for ep in range(args.epochs):
         model.train()
         t0, tot, correct, n = time.time(), 0.0, 0, 0
         for i, (x, y) in enumerate(loader):
+            x, y = x.to(DEVICE), y.to(DEVICE)
             out = model(x)
             loss = loss_fn(out, y)
             opt.zero_grad()
@@ -172,7 +190,7 @@ def main():
             best = vacc
             torch.save(model.state_dict(), OUT / "best.pt")
 
-    model.load_state_dict(torch.load(OUT / "best.pt"))
+    model.load_state_dict(torch.load(OUT / "best.pt", map_location=DEVICE))
     vp, vy = predict(model, val)
     threshold, curve = pick_threshold(vp, vy)
 
@@ -196,10 +214,12 @@ def main():
 
     cm = confusion_matrix(ty, tp.argmax(1), labels=list(range(len(LABELS))))
     metrics["test_confusion"] = cm.tolist()
-    (OUT / "metrics.json").write_text(json.dumps(metrics, indent=2))
     plots(cm, curve, threshold)
     export(model, threshold, val)
-    print(json.dumps({k: metrics[k] for k in ("threshold", "test_in_distribution")}, indent=2))
+    # What ships is the int8 file, so measure it, not just the PyTorch model.
+    metrics["test_int8_onnx"] = selective_report(predict_onnx(APP_MODEL / "maize.onnx", test), ty, threshold)
+    (OUT / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    print(json.dumps({k: metrics[k] for k in ("threshold", "test_in_distribution", "test_int8_onnx")}, indent=2))
     if "test_plantdoc_field" in metrics:
         print("plantdoc", metrics["test_plantdoc_field"])
 
@@ -239,7 +259,7 @@ def export(model, threshold, calib_items):
     from onnxruntime.quantization.shape_inference import quant_pre_process
 
     APP_MODEL.mkdir(parents=True, exist_ok=True)
-    model.eval()
+    model = model.cpu().eval()
     fp32, pre = OUT / "maize_fp32.onnx", OUT / "maize_pre.onnx"
     torch.onnx.export(model, torch.randn(1, 3, SIZE, SIZE), fp32, input_names=["input"], output_names=["logits"],
                       opset_version=17, dynamo=False)
