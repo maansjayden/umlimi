@@ -40,10 +40,12 @@ The abstain threshold is chosen on the validation split as the lowest confidence
 - A queued case holds a 160 px thumbnail, the label and the confidence. No name, phone number or GPS.
 - Lost or shared phone: the queue is a short list of leaf thumbnails with no personal data. Clearing browser data wipes it.
 
-## 5. Results *(to fill from ml/out/metrics.json)*
+## 5. Results (v1 from ml/out/v1/metrics.json; v1 used threshold 0.30 when measured)
 
 | Test set | Accuracy (all) | Coverage | Accuracy when it answers |
 |---|---|---|---|
-| In-distribution held-out (daiv05) | | | |
-| Same, int8 ONNX as shipped | | | |
-| PlantDoc field photos (never seen) | | | |
+| In-distribution held-out (daiv05), v1 | 98.5 % | 100 % | 98.5 % |
+| Same, int8 ONNX as shipped, v1 | 95.4 % | 99.7 % | 95.7 % |
+| PlantDoc field photos (never seen), v1 full precision | 49.5 % | 99.5 % | 49.7 % |
+| PlantDoc field photos, v1 int8 as shipped | 34.6 % | — | — |
+| v2 (EfficientNet-Lite0, field-calibrated threshold) | *training* | | |
