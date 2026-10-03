@@ -1,0 +1,23 @@
+{
+  "labels": [
+    "faw",
+    "gls",
+    "nlb",
+    "rust",
+    "healthy",
+    "other"
+  ],
+  "input_size": 224,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "threshold": 0.9,
+  "version": "2026-10-03"
+}
