@@ -1,8 +1,20 @@
-# 🌽 Umlimi — an offline maize helper for South African smallholders
+<p align="center">
+  <img src="docs/logo.png" width="120" alt="Umlimi logo">
+</p>
 
-**Hack-Nation 7th Global AI Hackathon · Challenge 04: Small AI for Development (World Bank) · Agriculture**
+<h1 align="center">Umlimi</h1>
+<p align="center"><b>Offline maize AI for South African smallholder farmers</b><br>
+Hack-Nation 7th Global AI Hackathon · Challenge 04: Small AI for Development (World Bank) · Agriculture</p>
 
-**Live demo:** https://umlimi-theta.vercel.app (open on an Android phone → "Add to Home screen" → works in airplane mode). No maize leaf nearby? Tap **Check a leaf → Try sample**. · **Video:** _(link coming)_
+<h2 align="center">▶ <a href="https://umlimi-theta.vercel.app">Try the live app: umlimi-theta.vercel.app</a></h2>
+
+<p align="center">
+No maize leaf nearby? Tap <b>Check a leaf → Try sample</b>.<br>
+On an Android phone: open the link → <b>Add to Home screen</b> → it keeps working in airplane mode.<br>
+<b>Videos:</b> <i>(links coming)</i>
+</p>
+
+---
 
 > Because of Umlimi, a smallholder maize farmer will know **on the day she sees a damaged leaf** whether it is
 > fall armyworm or a leaf disease, and **on the day a buyer arrives** whether his price is fair. Without it she
