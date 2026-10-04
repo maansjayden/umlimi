@@ -48,4 +48,4 @@ The abstain threshold is chosen on the validation split as the lowest confidence
 | Same, int8 ONNX as shipped, v1 | 95.4 % | 99.7 % | 95.7 % |
 | PlantDoc field photos (never seen), v1 full precision | 49.5 % | 99.5 % | 49.7 % |
 | PlantDoc field photos, v1 int8 as shipped | 34.6 % | — | — |
-| v2 (EfficientNet-Lite0, field-calibrated threshold) | *training* | | |
+| v2 (EfficientNet-Lite0, field-calibrated threshold) | not run before deadline | | |

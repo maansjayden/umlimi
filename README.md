@@ -86,7 +86,7 @@ recorded speaker could fill that gap later. None of the translations has been ch
 - **Lab-like data flatters the model.** Most public maize datasets are close-ups shot in similar conditions. On PlantDoc's messy web and field photos (several leaves per photo, odd light, watermarks), accuracy drops by half. Blight and rust are most often confused with grey leaf spot.
 - **Shrinking the model cost more on field photos** (49.5 % → 34.6 %) than on familiar ones (98.5 % → 95.4 %). MobileNetV3's activations are known to quantize badly.
 - **The v1 fail-safe was not good enough.** Its threshold was tuned on familiar photos, so it almost never abstained, and raising it did not make field answers reliable. The live app uses a stricter interim threshold (0.6).
-- **v2 (training now):** EfficientNet-Lite0, which is built for int8; half of the PlantDoc field photos added to training; the threshold tuned on a quarter of them; and the last quarter kept as an untouched test set. Its results will be added here, whether they are good or bad.
+- **v2 (prepared, not in this submission):** EfficientNet-Lite0, which is built for int8; half of the PlantDoc field photos added to training; the threshold tuned on a quarter of them; and the last quarter kept as an untouched test set. It was not finished before the deadline, so the live app runs v1.
 - **Sample buttons** use field photos from the training sources, chosen as typical correct cases (40 per class scored; the live model got 100 % / 93 % / 100 % right). They show the app working, not field accuracy.
 
 ## Data
